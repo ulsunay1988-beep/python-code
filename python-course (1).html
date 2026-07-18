@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="ky">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Кодчу Жол — Python курсу</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<style>
+  :root{
+    --bg: #12132a;
+    --bg-deep: #0b0c1c;
+    --card: #1c1e42;
+    --card-hi: #262a58;
+    --line: #34386e;
+    --gold: #f2a93b;
+    --gold-soft: #f2a93b22;
+    --mint: #4ade9c;
+    --mint-soft: #4ade9c22;
+    --coral: #ff6b6b;
+    --locked: #454875;
+    --text: #f4f4fb;
+    --text-dim: #a2a4cf;
+    --text-faint: #6d70a3;
+    --radius: 18px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{margin:0; padding:0;}
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Manrope', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  .mono{ font-family:'JetBrains Mono', monospace; }
+  h1,h2,h3,.display{ font-family:'Space Grotesk', sans-serif; }
+  button{ font-family:inherit; cursor:pointer; border:none; }
+  a{ color:inherit; }
+
+  /* ---------- Screens ---------- */
+  .screen{ display:none; min-height:100vh; width:100%; }
+  .screen.active{ display:block; }
+
+  /* ---------- Login ---------- */
+  #login{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:100vh; padding: 32px 20px; text-align:center;
+    background:
+      radial-gradient(ellipse 600px 300px at 50% 0%, #2a2d6622, transparent),
+      var(--bg);
+  }
+  .ridge{ width:100%; max-width:420px; height:64px; margin-bottom:8px; opacity:0.9;}
+  .brand-eyebrow{
+    font-size:12px; letter-spacing:3px; text-transform:uppercase; color:var(--gold);
+    font-weight:700; margin-bottom:10px;
+  }
+  .brand-title{ font-size:34px; font-weight:700; line-height:1.15; margin:0 0 10px; }
+  .brand-title span{ color: var(--gold); }
+  .brand-sub{ color:var(--text-dim); font-size:15px; max-width:340px; margin:0 0 32px; line-height:1.5;}
+  .login-card{
+    background: var(--card); border:1px solid var(--line); border-radius: var(--radius);
+    padding: 24px; width:100%; max-width: 360px;
+  }
+  .role-toggle{ display:flex; gap:8px; background:var(--bg-deep); padding:4px; border-radius:12px; margin-bottom:18px;}
+  .role-btn{
+    flex:1; padding:10px 8px; border-radius:9px; background:transparent; color:var(--text-dim);
+    font-weight:700; font-size:14px; transition:.15s;
+  }
+  .role-btn.active{ background: var(--gold); color:#1a1200; }
+  .field-label{ text-align:left; font-size:13px; color:var(--text-dim); font-weight:600; margin: 0 0 6px 2px;}
+  input[type=text]{
+    width:100%; padding:14px 14px; border-radius:12px; border:1px solid var(--line);
+    background: var(--bg-deep); color:var(--text); font-size:16px; margin-bottom:16px; outline:none;
+  }
+  input[type=text]:focus{ border-color: var(--gold); }
+  select{
+    width:100%; padding:14px 14px; border-radius:12px; border:1px solid var(--line);
+    background: var(--bg-deep); color:var(--text); font-size:16px; margin-bottom:16px; outline:none;
+    -webkit-appearance:none; appearance:none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23a2a4cf' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat; background-position: right 14px center;
+  }
+  select:focus{ border-color: var(--gold); }
+  select:invalid{ color: var(--text-faint); }
+  .primary-btn{
+    width:100%; padding:14px; border-radius:12px; background: var(--gold); color:#1a1200;
+    font-weight:800; font-size:15px; letter-spacing:.3px;
+  }
+  .primary-btn:active{ transform: scale(0.98); }
+  .login-hint{ margin-top:14px; font-size:12.5px; color:var(--text-faint); line-height:1.5;}
+
+  /* ---------- App shell ---------- */
+  #app{ padding-bottom: 90px; }
+  .topbar{
+    position:sticky; top:0; z-index:10;
+    background: linear-gradient(180deg, var(--bg) 70%, transparent);
+    padding: 18px 18px 14px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .greet{ font-size: 13px; color:var(--text-dim); }
+  .greet b{ color:var(--text); font-weight:700; }
+  .switch-btn{ background:none; color:var(--text-faint); font-size:12px; text-decoration:underline; }
+
+  .progress-wrap{ padding: 4px 18px 20px; }
+  .progress-card{
+    background: linear-gradient(135deg, var(--card-hi), var(--card));
+    border:1px solid var(--line); border-radius: var(--radius); padding:18px 20px;
+  }
+  .progress-top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;}
+  .progress-level{ font-size:12px; color:var(--gold); font-weight:700; letter-spacing:1px; text-transform:uppercase;}
+  .progress-pct{ font-size:22px; font-weight:800; font-family:'Space Grotesk';}
+  .bar-track{ height:8px; background: var(--bg-deep); border-radius:6px; overflow:hidden;}
+  .bar-fill{ height:100%; background: linear-gradient(90deg, var(--gold), var(--mint)); border-radius:6px; transition: width .4s ease;}
+  .progress-note{ margin-top:10px; font-size:12.5px; color:var(--text-dim);}
+
+  /* ---------- Path ---------- */
+  .path-wrap{ padding: 6px 0 30px; }
+  .level-block{ padding: 10px 0 6px; }
+  .level-header{ padding: 20px 20px 6px; }
+  .level-name{ font-size:19px; font-weight:800; }
+  .level-desc{ font-size:13px; color:var(--text-dim); margin-top:2px;}
+  .mountain{ width:100%; height:46px; display:block; }
+
+  .nodes{ display:flex; flex-direction:column; align-items:center; padding: 8px 20px 0; position:relative;}
+  .node-row{ display:flex; align-items:center; width:100%; max-width:360px; position:relative; }
+  .node-row:not(:last-child){ margin-bottom: -4px; }
+  .connector{ width:3px; height:34px; background: var(--line); margin: 0 auto; }
+  .connector.done{ background: var(--mint); }
+
+  .node-btn{
+    width:100%; display:flex; align-items:center; gap:14px;
+    background: var(--card); border:1px solid var(--line); border-radius: 16px;
+    padding: 13px 16px; text-align:left; color:var(--text);
+  }
+  .node-btn:active{ transform: scale(0.98); }
+  .node-btn.locked{ opacity:0.5; }
+  .node-btn.done{ border-color: var(--mint); background: linear-gradient(135deg, var(--mint-soft), var(--card)); }
+  .node-btn.current{ border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
+  .node-btn.project{ border-color: var(--gold); background: linear-gradient(135deg, var(--gold-soft), var(--card)); }
+
+  .node-badge{
+    width:38px; height:38px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px;
+    background: var(--locked); color:#fff;
+  }
+  .node-btn.done .node-badge{ background: var(--mint); color:#052e1c; }
+  .node-btn.current .node-badge{ background: var(--gold); color:#1a1200; }
+  .node-btn.project .node-badge{ background: var(--gold); color:#1a1200; }
+  .node-title{ font-size:14.5px; font-weight:700; line-height:1.3; }
+  .node-sub{ font-size:11.5px; color:var(--text-faint); margin-top:2px;}
+
+  /* ---------- Bottom nav ---------- */
+  .bottom-nav{
+    position:fixed; bottom:0; left:0; right:0; z-index:20;
+    background: rgba(18,19,42,0.92); backdrop-filter: blur(10px);
+    border-top:1px solid var(--line);
+    display:flex; padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  }
+  .nav-btn{
+    flex:1; background:none; color:var(--text-faint); display:flex; flex-direction:column;
+    align-items:center; gap:4px; padding:8px 0; font-size:11px; font-weight:700; border-radius:12px;
+  }
+  .nav-btn.active{ color: var(--gold); }
+  .nav-icon{ font-size:19px; }
+
+  /* ---------- Modal ---------- */
+  .modal-bg{
+    display:none; position:fixed; inset:0; background: rgba(6,7,20,0.7); z-index:50;
+    align-items:flex-end; justify-content:center;
+  }
+  .modal-bg.active{ display:flex; }
+  .modal{
+    background: var(--bg); width:100%; max-width:520px; max-height:88vh; overflow-y:auto;
+    border-radius: 22px 22px 0 0; padding: 22px 20px calc(24px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line); animation: slideup .22s ease;
+  }
+  @keyframes slideup{ from{ transform: translateY(30px); opacity:0;} to{ transform:translateY(0); opacity:1;} }
+  .modal-tag{ font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--gold); font-weight:800; }
+  .modal-title{ font-size:21px; font-weight:800; margin: 6px 0 14px; line-height:1.3;}
+  .modal-text{ font-size:14.5px; line-height:1.65; color:var(--text-dim); margin-bottom:16px; white-space:pre-line;}
+  .code-block{
+    background: var(--bg-deep); border:1px solid var(--line); border-radius:12px; padding:14px 16px;
+    font-size:13px; line-height:1.6; color:#c9f2d8; overflow-x:auto; margin-bottom:16px; white-space:pre;
+  }
+  .task-box{
+    background: var(--gold-soft); border:1px solid #f2a93b55; border-radius:12px; padding:14px 16px; margin-bottom:20px;
+  }
+  .task-label{ font-size:11.5px; font-weight:800; color:var(--gold); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;}
+  .task-text{ font-size:14px; line-height:1.55; color:var(--text);}
+  .practice-box{ margin-bottom:20px; }
+  .practice-label{ font-size:11.5px; font-weight:800; color:var(--mint); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;}
+  .practice-item{
+    display:flex; gap:10px; align-items:flex-start; font-size:13.5px; line-height:1.5; color:var(--text-dim);
+    background: var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px;
+  }
+  .practice-num{ color: var(--mint); font-weight:800; flex-shrink:0; }
+  .next-steps-card{
+    background: linear-gradient(135deg, var(--card-hi), var(--card)); border:1px solid var(--gold); border-radius: var(--radius);
+    padding: 20px; margin: 24px 20px 0;
+  }
+  .next-steps-title{ font-size:16px; font-weight:800; color:var(--gold); margin-bottom:8px; }
+  .next-steps-text{ font-size:13.5px; line-height:1.6; color:var(--text-dim); white-space:pre-line; }
+
+  /* ---------- Code runner ---------- */
+  .editor-label{ font-size:11.5px; font-weight:800; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin: 14px 0 6px;}
+  .code-editor{
+    width:100%; min-height:140px; background: var(--bg-deep); color:#c9f2d8; border:1px solid var(--line);
+    border-radius:12px; padding:14px 16px; font-size:13px; line-height:1.6; resize:vertical; outline:none;
+    tab-size:4;
+  }
+  .code-editor:focus{ border-color: var(--gold); }
+  .code-editor.small{ min-height:60px; }
+  .run-btn{
+    width:100%; padding:14px; margin-top:10px; border-radius:12px; background: var(--gold); color:#1a1200;
+    font-weight:800; font-size:14.5px;
+  }
+  .run-btn:disabled{ opacity:0.6; }
+  .console-box{ margin-top:14px; }
+  .console-label{ font-size:11.5px; font-weight:800; color:var(--text-faint); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;}
+  .console-output{
+    background:#07080f; border:1px solid var(--line); border-radius:12px; padding:14px 16px;
+    font-family:'JetBrains Mono', monospace; font-size:12.5px; line-height:1.6; color:#d8f5e3;
+    white-space:pre-wrap; word-break:break-word; max-height:220px; overflow-y:auto; margin:0;
+  }
+  .result-box{ margin-top:14px; border-radius:12px; padding:14px 16px; border:1px solid var(--line); }
+  .result-box.pass{ background: var(--mint-soft); border-color: var(--mint); }
+  .result-box.fail{ background:#ff6b6b22; border-color: var(--coral); }
+  .result-title{ font-weight:800; font-size:14.5px; margin-bottom:4px; }
+  .result-box.pass .result-title{ color: var(--mint); }
+  .result-box.fail .result-title{ color: var(--coral); }
+  .result-score{ font-size:12.5px; color:var(--text-dim); margin-bottom:6px; }
+  .result-detail{ font-size:12.5px; color:var(--text-dim); white-space:pre-line; font-family:'JetBrains Mono', monospace; line-height:1.6;}
+  .not-runnable-note{
+    background: var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px;
+    font-size:13px; color:var(--text-dim); line-height:1.5; margin-top:14px;
+  }
+  .modal-actions{ display:flex; gap:10px; }
+  .ghost-btn{ flex:1; padding:14px; border-radius:12px; background: var(--card); color:var(--text-dim); font-weight:700; border:1px solid var(--line);}
+  .done-btn{ flex:2; padding:14px; border-radius:12px; background: var(--mint); color:#052e1c; font-weight:800;}
+  .done-btn.completed{ background: var(--card); color: var(--mint); border:1px solid var(--mint);}
+
+  /* ---------- Teacher dashboard ---------- */
+  #teacher{ padding: 20px 18px 40px; max-width: 720px; margin:0 auto; }
+  .t-head{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;}
+  .t-title{ font-size:24px; font-weight:800; }
+  .t-sub{ font-size:13px; color:var(--text-dim); margin-top:4px; max-width:440px; line-height:1.5;}
+  .refresh-btn{ background: var(--card); border:1px solid var(--line); color:var(--text); padding:10px 14px; border-radius:10px; font-size:13px; font-weight:700; white-space:nowrap;}
+  .stat-row{ display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;}
+  .stat-chip{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 14px; flex:1; min-width:100px;}
+  .stat-num{ font-size:20px; font-weight:800; font-family:'Space Grotesk';}
+  .stat-label{ font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.5px;}
+  .student-card{
+    background: var(--card); border:1px solid var(--line); border-radius:16px; padding:16px 18px; margin-bottom:12px;
+  }
+  .s-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+  .s-name{ font-size:16px; font-weight:800; display:flex; align-items:center; gap:8px;}
+  .dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0;}
+  .dot.green{ background: var(--mint); box-shadow:0 0 8px var(--mint);}
+  .dot.yellow{ background: var(--gold); box-shadow:0 0 8px var(--gold);}
+  .dot.red{ background: var(--coral); box-shadow:0 0 8px var(--coral);}
+  .s-level{ font-size:12px; color:var(--gold); font-weight:700;}
+  .s-bar-track{ height:6px; background:var(--bg-deep); border-radius:5px; overflow:hidden; margin-bottom:8px;}
+  .s-bar-fill{ height:100%; background: linear-gradient(90deg, var(--gold), var(--mint)); border-radius:5px;}
+  .s-meta{ display:flex; justify-content:space-between; font-size:12px; color:var(--text-faint);}
+  .empty-state{ text-align:center; padding: 60px 20px; color:var(--text-faint); }
+  .empty-state .big{ font-size:38px; margin-bottom:12px;}
+
+  ::-webkit-scrollbar{ width:0; height:0; }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login" class="screen active">
+  <svg class="ridge" viewBox="0 0 420 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0 64 L50 20 L90 46 L140 8 L190 40 L230 18 L270 48 L320 14 L360 42 L420 24 L420 64 Z" fill="#1c1e42"/>
+    <path d="M0 64 L50 20 L90 46 L140 8 L190 40 L230 18 L270 48 L320 14 L360 42 L420 24" stroke="#f2a93b" stroke-width="1.5" fill="none" opacity="0.6"/>
+    <circle cx="140" cy="8" r="4" fill="#f2a93b"/>
+  </svg>
+  <div class="brand-eyebrow">Python • Негизден бекем фундаментке</div>
+  <h1 class="brand-title">Кодчу <span>Жол</span></h1>
+  <p class="brand-sub">Python программалоону үйрөнүүнүн тоо жолу — сабактан сабакка, деңгээлден деңгээлге. Бул жол сизге бекем негиз берет; чыныгы чеберчилик андан ары практика жана өз долбоорлор менен келет.</p>
+
+  <div class="login-card">
+    <div class="role-toggle">
+      <button class="role-btn active" id="roleStudentBtn" onclick="setRole('student')">🎒 Окуучу</button>
+      <button class="role-btn" id="roleTeacherBtn" onclick="setRole('teacher')">🧑‍🏫 Мугалим</button>
+    </div>
+
+    <div id="studentFields">
+      <div class="field-label">Атыңыз</div>
+      <input type="text" id="nameInput" placeholder="Мисалы: Айжан Осмонова" maxlength="40">
+      <div class="field-label">Мугалимиңиз</div>
+      <select id="teacherSelect">
+        <option value="">Жүктөлүүдө...</option>
+      </select>
+      <button class="primary-btn" onclick="loginStudent()">Жолго чыгуу →</button>
+      <div class="login-hint" id="noTeacherHint" style="display:none; color:var(--coral);">Азырынча бир дагы мугалим катталган жок. Мугалимиңизге "Мугалим" катары кирип, катталууну сураңыз.</div>
+    </div>
+
+    <div id="teacherFields" style="display:none;">
+      <div class="field-label">Мугалимдин аты</div>
+      <input type="text" id="teacherNameInput" placeholder="Мисалы: Бекова А." maxlength="40">
+      <button class="primary-btn" onclick="loginTeacher()">Панелге кирүү →</button>
+    </div>
+
+    <div class="login-hint">Атыңызды бир жолу жазсаңыз, прогрессиңиз сакталып калат — кийин ушул эле шилтеме менен кайра ачканда таанылат.</div>
+  </div>
+</div>
+
+<!-- ============ STUDENT APP ============ -->
+<div id="app" class="screen">
+  <div class="topbar">
+    <div class="greet">Салам, <b id="studentGreetName">Окуучу</b> 👋</div>
+    <button class="switch-btn" onclick="logout()">чыгуу</button>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-card">
+      <div class="progress-top">
+        <div class="progress-level" id="levelLabel">1-ДЕҢГЭЭЛ</div>
+        <div class="progress-pct" id="pctLabel">0%</div>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="barFill" style="width:0%"></div></div>
+      <div class="progress-note" id="progressNote">Азырынча эч сабак өтүлгөн жок. Төмөндөгү 1-сабактан баштаңыз!</div>
+    </div>
+  </div>
+
+  <div class="path-wrap" id="pathWrap"></div>
+</div>
+
+<!-- ============ TEACHER DASHBOARD ============ -->
+<div id="teacher" class="screen">
+  <div class="t-head">
+    <div>
+      <div class="t-title">Мугалим панели — <span id="teacherGreetName" style="color:var(--gold)">Мугалим</span></div>
+      <div class="t-sub">Өзүңүздүн окуучуларыңыздын прогресси жана активдүүлүгү жандуу көрүнөт. 🟢 акыркы 3 күндө активдүү · 🟡 3-7 күн · 🔴 7 күндөн ашык катышкан жок.</div>
+    </div>
+  </div>
+  <div style="display:flex; gap:10px; margin-bottom:18px;">
+    <button class="refresh-btn" onclick="loadTeacherData()">↻ Жаңыртуу</button>
+    <button class="switch-btn" style="margin-left:auto;" onclick="logout()">чыгуу</button>
+  </div>
+
+  <div class="stat-row" id="statRow"></div>
+  <div id="studentList"></div>
+</div>
+
+<!-- ============ BOTTOM NAV (student only) ============ -->
+<div class="bottom-nav" id="bottomNav" style="display:none;">
+  <button class="nav-btn active"><span class="nav-icon">🗺️</span>Жол</button>
+</div>
+
+<!-- ============ LESSON MODAL ============ -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this) closeModal()">
+  <div class="modal">
+    <div class="modal-tag" id="modalTag">1-ДЕҢГЭЭЛ · САБАК 1</div>
+    <div class="modal-title" id="modalTitle">Сабактын аталышы</div>
+    <div class="modal-text" id="modalText">Түшүндүрмө</div>
+    <div class="code-block mono" id="modalCode">code</div>
+    <div class="task-box">
+      <div class="task-label">🎯 Тапшырма</div>
+      <div class="task-text" id="modalTask">Тапшырма тексти</div>
+    </div>
+    <div class="practice-box" id="practiceBox">
+      <div class="practice-label">💪 Кошумча көнүгүүлөр (даяр болсоңуз)</div>
+      <div id="practiceList"></div>
+    </div>
+
+    <div id="codeEditorBox">
+      <div class="editor-label">💻 Кодуңузду ушул жерге жазыңыз</div>
+      <textarea id="codeEditor" class="code-editor mono" spellcheck="false" placeholder="# мисалы: print(&quot;Салам&quot;)"></textarea>
+      <div id="inputQueueBox" style="display:none;">
+        <div class="editor-label">⌨️ input() маанилери (ар бирин жаңы сапка жазыңыз, кезеги менен колдонулат)</div>
+        <textarea id="inputQueue" class="code-editor mono small" spellcheck="false"></textarea>
+      </div>
+      <button class="run-btn" id="runBtn" onclick="runStudentCode()">▶ Иштетүү жана текшерүү</button>
+      <div class="console-box" id="consoleBox" style="display:none;">
+        <div class="console-label">📟 Чыгуу</div>
+        <pre class="console-output" id="consoleOutput"></pre>
+      </div>
+      <div class="result-box" id="resultBox" style="display:none;"></div>
+    </div>
+    <div class="not-runnable-note" id="notRunnableNote" style="display:none;">
+      ℹ️ Бул сабак терминал буйруктары же тышкы кызматтар (Git, деплой ж.б.) менен байланыштуу — аларды браузерде эмес, өз компьютериңизде сынап көрүңүз.
+    </div>
+    <div class="modal-actions">
+      <button class="ghost-btn" onclick="closeModal()">Жабуу</button>
+      <button class="done-btn" id="modalDoneBtn" onclick="markDone()">✅ Сабакты аяктадым</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   FIREBASE SETUP — бул жерди өзүңүздүн долбоорго алмаштырыңыз
+   Кадамдар: 1) console.firebase.google.com > жаңы долбоор
+             2) Build > Firestore Database > Create database > test mode
+             3) ⚙️ Project settings > Your apps > "</>" Web > catташтыруу
+             4) Чыккан firebaseConfig'ди so'zsuz osy jerge коюңуз
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyDqTU02ZM7_Mqu1fzuh8Qhw_aLWeYpkyQc",
+  authDomain: "vigilant-method-418919.firebaseapp.com",
+  projectId: "vigilant-method-418919",
+  storageBucket: "vigilant-method-418919.firebasestorage.app",
+  messagingSenderId: "45412501313",
+  appId: "1:45412501313:web:2a978d2b228fe0dcf8c3c0"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+/* =========================================================
+   LESSON CONTENT — 4 levels x 10 lessons = 40 lessons
+   ========================================================= */
+const LEVELS = [
+  {num:1, name:"1-деңгээл: Негиздер", desc:"Python тили менен алгачкы таанышуу"},
+  {num:2, name:"2-деңгээл: Түзүмдөр жана функциялар", desc:"Маалыматтарды иштетүү жана кайра колдонуу"},
+  {num:3, name:"3-деңгээл: ООП жана алгоритмдер", desc:"Объектиге багытталган ой жүгүртүү"},
+  {num:4, name:"4-деңгээл: Кесипке кадам таштоо", desc:"Реалдуу куралдар менен таанышуу — бул жерден ары карай практика менен өсөсүз"},
+];
+
+const LESSONS = [
+// ---------- LEVEL 1 ----------
+{id:1, level:1, title:"Python деген эмне жана биринчи программа", isProject:false,
+ text:"Python — үйрөнүүгө жеңил, бирок өтө күчтүү программалоо тили. Ага веб-сайттар, жасалма интеллект, оюндар жана дагы көптөгөн нерселер курулат. Программа print() функциясы менен экранга текст чыгаруудан башталат.",
+ code:`print("Салам, Python!")`,
+ task:"Өз атыңызды колдонуп, экранга саламдашуу чыгарган программа жазыңыз: print(\"Салам, [атыңыз]!\")",
+ practice:["Экранга жылдызча (*) менен кичине сүрөт (мис. үч бурч) тартыңыз.","3 ар кандай print() сабын колдонуп, өзүңүз жөнүндө кыска маалымат бериңиз."],
+ check:{"runnable": true, "needsInput": false, "type": "output-contains", "must": ["салам"]}},
+{id:2, level:1, title:"Өзгөрмөлөр жана маалымат түрлөрү", isProject:false,
+ text:"Өзгөрмө — маалыматты сактоочу «кутуча». Python'до негизги түрлөр: int (бүтүн сан), float (бөлчөк сан), str (сап/текст), bool (True/False).",
+ code:`aty = "Айжан"\njashy = 16\nboyu = 1.65\nokuuchubu = True\nprint(aty, jashy, boyu, okuuchubu)`,
+ task:"Өзүңүздүн атыңызды, жашыңызды жана бир сүйүктүү санды өзгөрмөлөргө сактап, print() менен чыгарыңыз.",
+ practice:["Логин, email жана паролду өзгөрмөлөргө сактап, баарын бир print()до чыгарыңыз.","type() функциясын колдонуп ар бир өзгөрмөнүн түрүн текшериңиз."],
+ check:{"runnable": true, "needsInput": false, "type": "output-nonempty"}},
+{id:3, level:1, title:"Киргизүү жана f-string форматтоо", isProject:false,
+ text:"input() функциясы колдонуучудан маалымат кабыл алат. f-string (f\"...\") аркылуу өзгөрмөлөрдү текстке кооздоп кыстарууга болот.",
+ code:`aty = input("Атыңызды жазыңыз: ")\nprint(f"Салам, {aty}! Python'го кош келдиңиз.")`,
+ task:"Колдонуучудан атын жана жашын сурап, f-string менен \"[Ат], сен [жаш] жаштасың\" деп чыгарган программа жазыңыз.",
+ practice:["Эки санды input() менен алып, кошуп, натыйжаны f-string менен кооздоп чыгарыңыз.","Колдонуучудан шаарын сурап, \"Мен [шаар]данмын\" деп жазыңыз."],
+ check:{"runnable": true, "needsInput": true, "defaultInputs": ["Айым", "15"], "type": "output-contains", "must": ["жаштасың"]}},
+{id:4, level:1, title:"Арифметикалык жана салыштыруу операторлору", isProject:false,
+ text:"+, -, *, / — арифметикалык амалдар. // бүтүн бөлүү, % калдыкты табат, ** даражага көтөрөт. ==, !=, >, < — салыштыруу, натыйжасы True же False.",
+ code:`a = 17\nb = 5\nprint(a // b)   # 3\nprint(a % b)    # 2\nprint(a > b)    # True`,
+ task:"Эки санды input() менен алып, алардын суммасын, айырмасын жана көбөйтүндүсүн чыгарган программа жазыңыз.",
+ practice:["Тик бурчтуктун туурасы менен бийиктигин сурап, аянтын жана периметрин эсептеңиз.","Секунд санды алып, аны саат:мүнөт:секундга айландырган программа жазыңыз (// жана % колдонуп)."],
+ check:{"runnable": true, "needsInput": true, "defaultInputs": ["8", "3"], "type": "output-contains", "must": ["11", "5", "24"]}},
+{id:5, level:1, title:"Логикалык операторлор жана шарттар (if/elif/else)", isProject:false,
+ text:"and, or, not менен шарттарды бириктирүүгө болот. if/elif/else программага чечим кабыл алдырат.",
+ code:`baa = int(input("Баа: "))\nif baa >= 80:\n    print("Мыкты!")\nelif baa >= 50:\n    print("Канааттандырарлык")\nelse:\n    print("Кайра аракет кыл")`,
+ task:"Жашты сурап, 18ден кичине болсо \"Кичине\", 18-60 аралыгында \"Чоң адам\", андан улуу болсо \"Улгайган\" деп чыгарган программа жазыңыз.",
+ practice:["Үч санды салыштырып, эң чоңун табыңыз (if/elif/else менен).","Жылды сурап, ал кабыш жыл (leap year) экенин текшериңиз."],
+ check:{"runnable": true, "needsInput": true, "defaultInputs": ["70"], "type": "output-contains", "must": ["улгайган"]}},
+{id:6, level:1, title:"Циклдер: for", isProject:false,
+ text:"for циклин белгилүү санда кайталоо үчүн колдонобуз. range() функциясы сандар ырааттуулугун берет.",
+ code:`for i in range(1, 6):\n    print(f"{i}-катар")`,
+ task:"1ден 10го чейинки сандардын квадратын (i*i) for циклин колдонуп чыгарыңыз.",
+ practice:["1ден 100гө чейинки бардык сандардын суммасын for менен эсептеңиз.","Атыңызды 5 жолу кайталап чыгарган цикл жазыңыз."],
+ check:{"runnable": true, "needsInput": false, "type": "output-contains", "must": ["1", "4", "9", "16", "25", "36", "49", "64", "81", "100"]}},
+{id:7, level:1, title:"Циклдер: while, break, continue", isProject:false,
+ text:"while шарт туура болгонго чейин кайталайт. break циклди токтотот, continue кийинки кадамга өтөт.",
+ code:`san = 0\nwhile san < 5:\n    print(san)\n    san += 1`,
+ task:"1ден баштап, колдонуучу \"токто\" деп жазганга чейин сандарды санап чыгарган while цикл жазыңыз.",
+ practice:["1ден 30га чейин, эгер сан 3кө бөлүнсө continue менен өткөрүп, калгандарын print кылыңыз.","Колдонуучу туура сөз айтканга чейин суроо берип туруучу while цикл жазыңыз (мис. купуя сөз ойногучу)."],
+ check:{"runnable": true, "needsInput": true, "defaultInputs": ["0", "1", "2", "токто"], "type": "no-crash"}},
+{id:8, level:1, title:"Тизмелер (list) — негиздери", isProject:false,
+ text:"Тизме — бир нече маалыматты тартипте сактаган түзүм: [1, 2, 3]. append() кошот, тизменин индекси 0дон башталат.",
+ code:`atalyshtar = ["алма", "алмурут", "жүзүм"]\natalyshtar.append("өрүк")\nprint(atalyshtar[0])\nprint(len(atalyshtar))`,
+ task:"5 досуңуздун атын тизмеге киргизип, for циклин колдонуп ар бирин экранга чыгарыңыз.",
+ practice:["Тизмедеги эң кичине жана эң чоң санды min()/max() колдонбой, циклди колдонуп табыңыз.","Тизмеден бир элементти remove() менен өчүрүп, натыйжаны чыгарыңыз."],
+ check:{"runnable": true, "needsInput": false, "type": "min-lines", "min": 5}},
+{id:9, level:1, title:"Сап (string) менен иштөө негиздери", isProject:false,
+ text:"Саптар да тизме сыяктуу индекстелет. Пайдалуу методдор: upper(), lower(), len(), split(), .strip().",
+ code:`suylom = "Python оор эмес"\nprint(suylom.upper())\nprint(len(suylom))\nprint(suylom.split(" "))`,
+ task:"Колдонуучудан бир сүйлөм алып, ичиндеги сөздөрдүн санын (split() аркылуу) чыгарыңыз.",
+ practice:["Сүйлөмдөгү ар бир сөздүн узундугун чыгарыңыз.","Бир сөздү тескери (артка) жазган программа жазыңыз ([::-1] колдонуп)."],
+ check:{"runnable": true, "needsInput": true, "defaultInputs": ["Мен Python үйрөнөм жакшы"], "type": "output-contains", "must": ["4"]}},
+{id:10, level:1, title:"ДОЛБООР: Жупсанак ойногуч", isProject:true,
+ text:"Мурунку 9 сабакта үйрөнгөндөрдү (input, шарттар, циклдер, өзгөрмөлөр) бириктирип, чакан ойногуч жасайбыз. Компьютер 1-100 аралыгынан сан тандайт (буга random модулу керек болот), колдонуучу таап чыгууга аракет кылат.",
+ code:`import random\nsyr = random.randint(1, 100)\nchamalar = 0\nwhile True:\n    chamalar += 1\n    boljol = int(input("Санды бол: "))\n    if boljol == syr:\n        print(f"Туура! {chamalar} аракетте таптыз!")\n        break\n    elif boljol < syr:\n        print("Чоңураак")\n    else:\n        print("Кичинераак")`,
+ task:"Жогорудагы кодду өзүңүз терип иштетиңиз, андан кийин аракеттердин санын 10дон ашырбоо шартын кошуп көрүңүз.",
+ practice:["Ойногучка 'кайра ойноо' сурап турган мүмкүнчүлүк кошуңуз.","Аракеттердин санына жараша баа (мис. 5тен аз болсо 'Мыкты!') чыгарыңыз."],
+ check:{"runnable": true, "needsInput": true, "defaultInputs": ["50", "25", "12", "6", "3"], "type": "no-crash"}},
+
+// ---------- LEVEL 2 ----------
+{id:11, level:2, title:"Функциялар: def, параметрлер, return", isProject:false,
+ text:"Функция — кайра-кайра колдонула турган код бөлүгү. def менен жарыялайбыз, return маани кайтарат.",
+ code:`def chondur(san):\n    return san * san\n\nprint(chondur(6))`,
+ task:"Эки санды кабыл алып, чоңун кайтарган max_tabuu(a, b) функциясын жазыңыз.",
+ practice:["Санды кабыл алып, ал жуп же так экенин кайтарган функция жазыңыз.","Үч санды кабыл алып, орточо маанисин кайтарган функция жазыңыз."],
+ check:{"runnable": true, "needsInput": false, "type": "function-test", "func": "max_tabuu", "cases": [[[3, 5], 5], [[10, 2], 10], [[-1, -5], -1]]}},
+{id:12, level:2, title:"*args, **kwargs жана демейки маанилер", isProject:false,
+ text:"Функцияга демейки маани берүүгө (def f(x=5)), чексиз аргумент кабыл алууга (*args) жана ачкыч-маани түрүндө аргумент алууга (**kwargs) болот.",
+ code:`def salamdashuu(aty, tili="кыргызча"):\n    print(f"Салам, {aty}! Тил: {tili}")\n\nsalamdashuu("Бек")\nsalamdashuu("Айым", tili="англисче")`,
+ task:"Каалаган сандагы сандарды кабыл алып, алардын суммасын кайтарган суммa(*args) функциясын жазыңыз.",
+ practice:["Демейки маани менен daraja_kotoruu(san, daraja=2) функциясын жазыңыз.","**kwargs колдонуп, окуучунун баалары сыяктуу маалыматтарды чыгарган функция жазыңыз."],
+ check:{"runnable": true, "needsInput": false, "type": "function-test", "func": "summa", "cases": [[[1, 2, 3], 6], [[5], 5], [[], 0]]}},
+{id:13, level:2, title:"Тизмелер менен тереңирээк иштөө", isProject:false,
+ text:"Slicing [баштоо:аяктоо] тизменин бөлүгүн алат. sort(), reverse(), remove(), pop() тизмени өзгөртөт.",
+ code:`sandar = [5, 2, 9, 1, 7]\nsandar.sort()\nprint(sandar)\nprint(sandar[1:4])\nsandar.reverse()\nprint(sandar)`,
+ task:"10 санды камтыган тизме түзүп, аны тескери иреттеп, эң чоң 3 санын экранга чыгарыңыз.",
+ practice:["Тизмеден жуп сандарды гана тандап, жаңы тизмеге чыгарыңыз.","Эки тизмени бириктирип, кайталанган элементтерди алып салыңыз."],
+ check:{"runnable": true, "needsInput": false, "type": "min-lines", "min": 2}},
+{id:14, level:2, title:"Сөздүктөр (dict)", isProject:false,
+ text:"Сөздүк ачкыч-маани жуптарын сактайт: {\"ат\": \"маани\"}. Тез издөө үчүн өтө ыңгайлуу.",
+ code:`okuuchu = {"aty": "Нурлан", "jashy": 15, "klassy": "9-класс"}\nprint(okuuchu["aty"])\nokuuchu["baa"] = 92\nfor achkych, maani in okuuchu.items():\n    print(achkych, "-", maani)`,
+ task:"3 предметтин атын жана ошол предметтен алган баанызды сөздүккө сактап, орточо баанызды эсептеп чыгарыңыз.",
+ practice:["Сөздүктөн белгилүү бир ачкыч бар-жогун 'in' менен текшериңиз.","Бир нече окуучунун атын жана баасын камтыган сөздүктөрдүн тизмесин түзүңүз."],
+ check:{"runnable": true, "needsInput": false, "type": "output-nonempty"}},
+{id:15, level:2, title:"Кортеждер (tuple) жана жыйындар (set)", isProject:false,
+ text:"Tuple — өзгөрбөс тизме (koordinat = (10, 20)). Set — кайталанбаган элементтер жыйыны, дубликаттарды алып салат.",
+ code:`renkter = ["кызыл", "көк", "кызыл", "жашыл", "көк"]\nbirdikuu = set(renkter)\nprint(birdikuu)\nprint(len(birdikuu))`,
+ task:"20 санды камтыган тизме түзүп, set() аркылуу ичинде канча уникалдуу сан бар экенин табыңыз.",
+ practice:["Координат (x, y) сактаган tuple түзүп, эки чекиттин ортосундагы аралыкты эсептеңиз.","Эки тизмени set() кылып, экөөнө тең орток элементтерди табыңыз."],
+ check:{"runnable": true, "needsInput": false, "type": "output-nonempty"}},
+{id:16, level:2, title:"Сап методдору жана форматтоо", isProject:false,
+ text:"replace(), find(), join(), startswith() сыяктуу методдор саптарды иштетүүнү жеңилдетет.",
+ code:`email = "  Bekova@Mail.com  "\ntaza = email.strip().lower()\nprint(taza)\nprint(taza.endswith("@mail.com"))`,
+ task:"Колдонуучудан email алып, аны тазалап (strip, lower), '@' белгиси бар-жогун текшерген программа жазыңыз.",
+ practice:["Сүйлөмдөгү бардык 'а' тамгасын '@' менен алмаштырыңыз (replace()).","Толук атыңыздан баш тамгаларын (инициалдарын) чыгарган программа жазыңыз."],
+ check:{"runnable": true, "needsInput": true, "defaultInputs": ["  Bekova@Mail.com  "], "type": "output-contains", "must": ["true"]}},
+{id:17, level:2, title:"Файлдар менен иштөө", isProject:false,
+ text:"open() файлды ачат, write() жазат, read() окуйт. with колдонуу файлды автоматтык жаап коёт.",
+ code:`with open("konspekt.txt", "w", encoding="utf-8") as f:\n    f.write("Биринчи сабак: Python негиздери\\n")\n\nwith open("konspekt.txt", "r", encoding="utf-8") as f:\n    print(f.read())`,
+ task:"Сүйүктүү 5 китептин атын файлга жазып, андан кийин ошол файлды окуп, экранга чыгарыңыз.",
+ practice:["Окуучулардын баасын файлга сап-сап жазып, кийин орточосун эсептеп чыгарыңыз.","Файл бар-жогун текшерип, жок болсо жаңы файл түзгөн программа жазыңыз."],
+ check:{"runnable": true, "needsInput": false, "type": "output-nonempty"}},
+{id:18, level:2, title:"Каталарды башкаруу (try/except)", isProject:false,
+ text:"Программа катаны токтотпой иштеши үчүн try/except колдонулат. finally ар дайым аткарылат.",
+ code:`try:\n    san = int(input("Сан жазыңыз: "))\n    print(10 / san)\nexcept ValueError:\n    print("Бул сан эмес!")\nexcept ZeroDivisionError:\n    print("Нөлгө бөлүүгө болбойт!")`,
+ task:"Колдонуучудан эки сан алып бөлгөн программа жазып, ноль жана туура эмес киргизүү учурларын кармаңыз (try/except).",
+ practice:["Тизмеден индекс боюнча элемент алганда IndexError'ду кармаңыз.","Файл ачууда FileNotFoundError'ду кармап, колдонуучуга түшүнүктүү билдирүү бериңиз."],
+ check:{"runnable": true, "needsInput": true, "defaultInputs": ["10", "0"], "type": "no-crash"}},
+{id:19, level:2, title:"Модулдар жана пакеттер (import, pip)", isProject:false,
+ text:"Модуль — даяр код топтому. import менен чакырабыз. pip install менен сырткы китепканаларды орнотобуз.",
+ code:`import math\nimport random\n\nprint(math.sqrt(64))\nprint(random.choice(["алма", "алмурут", "өрүк"]))`,
+ task:"datetime модулун import кылып, учурдагы күндү жана убакытты экранга чыгарган программа жазыңыз.",
+ practice:["os модулун колдонуп, учурдагы папканын аталышын чыгарыңыз.","statistics модулун import кылып, сандар тизмесинин медианасын табыңыз."],
+ check:{"runnable": true, "needsInput": false, "type": "output-nonempty"}},
+{id:20, level:2, title:"ДОЛБООР: Кыска маалыматтарды сактоочу", isProject:true,
+ text:"Функция, сөздүк жана файл менен иштөөнү бириктирип, чакан \"телефон китепчесин\" жасайбыз — аттарды жана телефон номерлерин сакттап, файлга жазабыз.",
+ code:`kitepche = {}\n\ndef koshuu(aty, nomer):\n    kitepche[aty] = nomer\n    with open("kitepche.txt", "a", encoding="utf-8") as f:\n        f.write(f"{aty}: {nomer}\\n")\n\nkoshuu("Айбек", "0700123456")\nkoshuu("Гүлназ", "0555987654")\nprint(kitepche)`,
+ task:"Жогорудагы программаны өзгөртүп, колдонуучудан циклде ат жана номер сурап, \"стоп\" деп жазганда токтотуучу кылып жасаңыз.",
+ practice:["Телефон китепчесине издөө мүмкүнчүлүгүн кошуңуз (ат боюнча табуу).","Жазуулардын санын санап, программа ишин бүткөндө көрсөтүңүз."],
+ check:{"runnable": true, "needsInput": true, "defaultInputs": ["Айбек", "0700123456", "стоп"], "type": "no-crash"}},
+
+// ---------- LEVEL 3 ----------
+{id:21, level:3, title:"Класстар жана объекттер", isProject:false,
+ text:"Класс — объект жасоо үчүн калып (шаблон). __init__ объект түзүлгөндө автоматтык иштейт.",
+ code:`class Okuuchu:\n    def __init__(self, aty, klassy):\n        self.aty = aty\n        self.klassy = klassy\n\n    def taanyshtyruu(self):\n        print(f"Мен {self.aty}, {self.klassy}-класста окуйм")\n\nbek = Okuuchu("Бекзат", 9)\nbek.taanyshtyruu()`,
+ task:"Kitep класcын түзүп (аты, автору, беттер саны атрибуттары менен), объект жасап маалыматын чыгарыңыз.",
+ practice:["Класска метод кошуп, окуучунун баасын өзгөртө турган кылыңыз.","Бир нече объект түзүп, тизмеге салып, циклде маалыматтарын чыгарыңыз."],
+ check:{"runnable": true, "needsInput": false, "type": "output-nonempty"}},
+{id:22, level:3, title:"Мурастоо (inheritance) жана полиморфизм", isProject:false,
+ text:"Мурастоо аркылуу бир класс башка класстын касиеттерин алат. Полиморфизм — ар бир класс бир методду өзүнчө ишке ашырышы.",
+ code:`class Jаныbar:\n    def un_chygaruu(self):\n        print("Бир добуш...")\n\nclass Kuchuk(Jаныbar):\n    def un_chygaruu(self):\n        print("Хаф-хаф!")\n\nKuchuk().un_chygaruu()`,
+ task:"Кайык (Транспорт) базалык классын жасап, андан Велосипед жана Автоунаа класстарын мурастап, ар бирине өзүнчө kыймылдоо() методун жазыңыз.",
+ practice:["Ата класска жалпы метод кошуп, ар бир бала класста аны айрым жол менен кайра аныктаңыз (override).","super() колдонуп, бала класстан ата класстын __init__ин чакырыңыз."],
+ check:{"runnable": true, "needsInput": false, "type": "output-nonempty"}},
+{id:23, level:3, title:"Инкапсуляция жана атрибуттарды коргоо", isProject:false,
+ text:"Ат алдына _ же __ коюу менен атрибутту \"жеке\" кылабыз — түздөн-түз сырттан өзгөртүүнү чектейбиз, анын ордуна методдор колдонулат.",
+ code:`class Эсеп:\n    def __init__(self, balans):\n        self.__balans = balans\n\n    def salymSaluu(self, sum):\n        self.__balans += sum\n\n    def balansKoruu(self):\n        return self.__balans\n\ne = Эсеп(1000)\ne.salymSaluu(500)\nprint(e.balansKoruu())`,
+ task:"Жогорудагы Эсеп классына акча алуу (алуу()) методун кошуп, балансты нөлдөн төмөн түшүрбөй турган текшерүү жазыңыз.",
+ practice:["Жашты сактаган жеке атрибутту 0дон кичине болбошун текшерген setter методу менен коргоңуз.","Классыңызга объекттин маалыматын жыйынтыктап көрсөтүүчү метод кошуңуз."],
+ check:{"runnable": true, "needsInput": false, "type": "output-nonempty"}},
+{id:24, level:3, title:"Алгоритм негиздери: издөө", isProject:false,
+ text:"Linear search ар бир элементти кезеги менен текшерет. Binary search иреттелген тизмеде тезирээк издейт (ортосунан бөлүп).",
+ code:`def linear_search(tizme, izdegen):\n    for i, elem in enumerate(tizme):\n        if elem == izdegen:\n            return i\n    return -1\n\nprint(linear_search([4,8,2,9,5], 9))`,
+ task:"binary_search функциясын жазыңыз: иреттелген тизмеден санды тез табуу үчүн ортосунан бөлүп издеңиз.",
+ practice:["linear_search функциясын өзгөртүп, элементтин канча жолу учурашын да кайтарыңыз.","binary_search'тү рекурсия (өзүн-өзү чакыруу) менен жазып көрүңүз."],
+ check:{"runnable": true, "needsInput": false, "type": "function-test", "func": "binary_search", "cases": [[[[1, 3, 5, 7, 9, 11], 7], 3], [[[2, 4, 6, 8], 8], 3], [[[1, 2, 3], 10], -1]]}},
+{id:25, level:3, title:"Сорттоо алгоритмдери", isProject:false,
+ text:"Bubble sort коңшу элементтерди салыштырып орун алмаштырат. Python'до .sort() же sorted() дароо колдонсо болот, бирок алгоритмди түшүнүү маанилүү.",
+ code:`def bubble_sort(tizme):\n    n = len(tizme)\n    for i in range(n):\n        for j in range(n - i - 1):\n            if tizme[j] > tizme[j+1]:\n                tizme[j], tizme[j+1] = tizme[j+1], tizme[j]\n    return tizme\n\nprint(bubble_sort([5,1,4,2,8]))`,
+ task:"Bubble sort функциясын өзүңүз колдонуп, 8 санды кичинеден чоңго карай иреттеп чыгарыңыз.",
+ practice:["Selection sort алгоритмин өз алдынча жазыңыз.","sorted() функциясын key параметри менен колдонуп, сөздүктөрдү бир талаа боюнча иреттеңиз."],
+ check:{"runnable": true, "needsInput": false, "type": "function-test", "func": "bubble_sort", "cases": [[[[5, 1, 4, 2, 8]], [1, 2, 4, 5, 8]]]}},
+{id:26, level:3, title:"Тизме/сөздүк comprehension", isProject:false,
+ text:"Comprehension — тизме же сөздүктү бир сапта түзүүнүн ыкчам жолу.",
+ code:`kvadrattar = [san**2 for san in range(1, 11)]\nprint(kvadrattar)\n\njup = [san for san in range(20) if san % 2 == 0]\nprint(jup)`,
+ task:"1ден 50ге чейинки сандардан 3кө бөлүнгөндөрүн list comprehension менен тандап алыңыз.",
+ practice:["Сөздүк comprehension менен сандардын квадраттарын {san: san**2} түрүндө түзүңүз.","Эки шартты бир эле comprehension'до колдонуңуз (мис. жуп жана 10дон чоң)."],
+ check:{"runnable": true, "needsInput": false, "type": "output-nonempty"}},
+{id:27, level:3, title:"Итераторлор жана генераторлор (yield)", isProject:false,
+ text:"Генератор функциясы бир учурда бир маани кайтарат жана эсте сактоону үнөмдөйт. yield return ордуна колдонулат.",
+ code:`def san_generator(chek):\n    san = 0\n    while san < chek:\n        yield san\n        san += 1\n\nfor san in san_generator(5):\n    print(san)`,
+ task:"Фибоначчи сандарын чексиз чыгарган генератор функция жазып, биринчи 10дан колдонуп көрүңүз.",
+ practice:["Генератор менен 1ден N чейинки сандардын гана жупторун чыгарыңыз.","next() функциясын колдонуп, генератордон кол менен маани алып көрүңүз."],
+ check:{"runnable": true, "needsInput": false, "type": "output-nonempty"}},
+{id:28, level:3, title:"Декораторлор", isProject:false,
+ text:"Декоратор — башка функцияны \"ороп\", кошумча жүрүм-турум кошуучу функция. @ белгиси менен колдонулат.",
+ code:`def убакытты_олчоо(func):\n    def wrapper(*args, **kwargs):\n        print(f"{func.__name__} иштеп жатат...")\n        return func(*args, **kwargs)\n    return wrapper\n\n@убакытты_олчоо\ndef салам():\n    print("Салам!")\n\nсалам()`,
+ task:"Функцияга берилген аргументтерди логго (print) жазып чыгаруучу жөнөкөй декоратор жазыңыз.",
+ practice:["Функциянын аткарылуу убактысын өлчөгөн декоратор жазыңыз (time модулу менен).","Бир нече декораторду бир функцияга кошуп колдонуп көрүңүз."],
+ check:{"runnable": true, "needsInput": false, "type": "output-nonempty"}},
+{id:29, level:3, title:"Тестирлөө: unittest негиздери", isProject:false,
+ text:"Автоматтык тесттер код туура иштээрин текшерет. unittest модулу Python'дун стандарттуу тестирлөө куралы.",
+ code:`import unittest\n\ndef chondur(san):\n    return san * san\n\nclass TestChondur(unittest.TestCase):\n    def test_oң_san(self):\n        self.assertEqual(chondur(4), 16)\n\nunittest.main(argv=[''], exit=False)`,
+ task:"12-сабактагы max_tabuu() функцияңыз үчүн 3 ар түрдүү учурду текшерген unittest тести жазыңыз.",
+ practice:["Терс сандар үчүн да тест жазып, күтүлгөн натыйжаны текшериңиз.","setUp() методун колдонуп, ар бир тесттин алдында даяр маалымат түзүңүз."],
+ check:{"runnable": true, "needsInput": false, "type": "output-contains", "must": ["ok"]}},
+{id:30, level:3, title:"ДОЛБООР: Класс негизиндеги мини-система", isProject:true,
+ text:"ООП билимиңизди колдонуп, чакан китепкана системасын түзөбүз: Kitep класcы жана аны башкаруучу Kitepkana класcы.",
+ code:`class Kitep:\n    def __init__(self, aty, autoru):\n        self.aty = aty\n        self.autoru = autoru\n        self.aluu_akyBar = True\n\nclass Kitepkana:\n    def __init__(self):\n        self.kitepter = []\n\n    def kitepKoshuu(self, kitep):\n        self.kitepter.append(kitep)\n\n    def aluu(self, aty):\n        for k in self.kitepter:\n            if k.aty == aty and k.aluu_akyBar:\n                k.aluu_akyBar = False\n                return f"{aty} алынды"\n        return "Табылган жок же алынып кетти"\n\nkk = Kitepkana()\nkk.kitepKoshuu(Kitep("Манас", "Элдик"))\nprint(kk.aluu("Манас"))`,
+ task:"Kitepkana классына kitep_kaytaruu() (кайтаруу) методун кошуп, толук иштеген системаны сынап көрүңүз.",
+ practice:["Kitepkana классына издөө (автор боюнча) методун кошуңуз.","Ар бир китепке жанр (genre) атрибутун кошуп, жанр боюнча чыпкалоо мүмкүнчүлүгүн жазыңыз."],
+ check:{"runnable": true, "needsInput": false, "type": "output-nonempty"}},
+
+// ---------- LEVEL 4 ----------
+{id:31, level:4, title:"Виртуалдык чөйрөлөр жана пакеттерди башкаруу", isProject:false,
+ text:"venv ар бир долбоор үчүн өзүнчө, таза чөйрө түзөт. requirements.txt файлы долбоордо колдонулган бардык пакеттерди тизмелейт.",
+ code:`# терминалда:\n# python -m venv venv\n# venv\\Scripts\\activate  (Windows)\n# source venv/bin/activate  (Mac/Linux)\n# pip install requests\n# pip freeze > requirements.txt`,
+ task:"Компьютериңизде venv түзүп, аны активдештирип, бир пакет (мис. requests) орнотуп көрүңүз.",
+ practice:["requirements.txt'ден pip install -r requirements.txt менен бардык пакеттерди орнотуп көрүңүз.","Эки башка долбоордо эки башка venv түзүп, алардын өз-өзүнчө экенин текшериңиз."],
+ check:{"runnable": false}},
+{id:32, level:4, title:"Git жана GitHub негиздери", isProject:false,
+ text:"Git код версияларын башкарат. Негизги буйруктар: git init, git add, git commit, git push. GitHub — коддорду онлайн сактоочу платформа.",
+ code:`# терминалда:\n# git init\n# git add .\n# git commit -m "Биринчи долбоор"\n# git remote add origin <шилтеме>\n# git push -u origin main`,
+ task:"GitHub'да аккаунт ачып (эгер жок болсо), жаңы репозиторий түзүп, өзүңүздүн биринчи Python файлыңызды жүктөп көрүңүз.",
+ practice:[".gitignore файлын түзүп, керексиз файлдарды Git'тен алып салыңыз.","git log менен өткөн commit'териңизди көрүп чыгыңыз."],
+ check:{"runnable": false}},
+{id:33, level:4, title:"SQLite менен маалымат базасы", isProject:false,
+ text:"sqlite3 модулу файл түрүндөгү жеңил маалымат базасы менен иштетет — чоң колдонмолордо маалыматты туруктуу сактоо үчүн колдонулат.",
+ code:`import sqlite3\n\ncon = sqlite3.connect("mektep.db")\ncur = con.cursor()\ncur.execute("CREATE TABLE IF NOT EXISTS okuuchular (aty TEXT, baa INTEGER)")\ncur.execute("INSERT INTO okuuchular VALUES (?, ?)", ("Айгерим", 95))\ncon.commit()\n\nfor row in cur.execute("SELECT * FROM okuuchular"):\n    print(row)`,
+ task:"Өз атыңызды жана 3 сабактан алган баанызды камтыган кичине SQLite базасын түзүп, маалыматты окуп чыгарыңыз.",
+ practice:["SQL сурамын WHERE менен колдонуп, белгилүү баадан жогорку окуучуларды издеңиз.","UPDATE жана DELETE сурамдарын колдонуп, маалыматты өзгөртүп/өчүрүп көрүңүз."],
+ check:{"runnable": true, "needsInput": false, "type": "output-nonempty"}},
+{id:34, level:4, title:"requests китепканасы менен API колдонуу", isProject:false,
+ text:"API — программалар ортосунда маалымат алмашуу жолу. requests китепканасы интернеттен маалымат алууну жеңилдетет.",
+ code:`import requests\n\njooop = requests.get("https://api.github.com")\nprint(jooop.status_code)\nprint(jooop.json())`,
+ task:"Каалаган ачык API (мисалы аба ырайы же валюта курсу API) чакырып, натыйжаны JSON түрүндө экранга чыгарыңыз.",
+ practice:["API'ден келген маалыматтан белгилүү бир талааны (мис. температураны) бөлүп алыңыз.","API чакырууда ката кетсе (мис. интернет жок), аны try/except менен кармаңыз."],
+ check:{"runnable": false}},
+{id:35, level:4, title:"Веб-скрапинг негиздери", isProject:false,
+ text:"BeautifulSoup китепканасы веб-баракчалардын HTML коддорунан маалымат алууга жардам берет. Ар дайым сайттын эрежелерин урматтоо керек.",
+ code:`# pip install beautifulsoup4 requests\nimport requests\nfrom bs4 import BeautifulSoup\n\njoop = requests.get("https://example.com")\nsoup = BeautifulSoup(joop.text, "html.parser")\nprint(soup.title.text)`,
+ task:"BeautifulSoup орнотуп, өзүңүз тандаган (уруксат берилген) сайттан баш аталышын (title) алып чыгарыңыз.",
+ practice:["Баракчадан бир нече шилтеменин (link) дарегин табыңыз.","find_all() колдонуп, баракчадагы бардык аталыштарды (h1, h2) чыгарыңыз."],
+ check:{"runnable": false}},
+{id:36, level:4, title:"Flask менен мини веб-колдонмо", isProject:false,
+ text:"Flask — Python'до веб-колдонмо жана API курууга арналган жеңил framework.",
+ code:`# pip install flask\nfrom flask import Flask\napp = Flask(__name__)\n\n@app.route("/")\ndef bashky_bet():\n    return "Салам, бул менин биринчи Flask сайтым!"\n\nif __name__ == "__main__":\n    app.run(debug=True)`,
+ task:"Flask орнотуп, жогорудагы кодду иштетип, браузерде localhost:5000 ачып көрүңүз.",
+ practice:["Flask'ка экинчи маршрут (route) кошуп, мисалы /about баракчасын жасаңыз.","URL'ден параметр кабыл алган маршрут жазыңыз (мис. /salam/<aty>)."],
+ check:{"runnable": false}},
+{id:37, level:4, title:"Маалыматтарды анализдөө негиздери (pandas)", isProject:false,
+ text:"pandas китепканасы чоң таблицалык маалыматтарды (CSV, Excel) тез анализдөөгө мүмкүндүк берет — маалымат илиминин негизги куралы.",
+ code:`# pip install pandas\nimport pandas as pd\n\nmaalymat = {"aty": ["Аяна", "Тимур"], "baa": [88, 95]}\ntaблица = pd.DataFrame(maalymat)\nprint(taблица)\nprint(taблица["baa"].mean())`,
+ task:"pandas орнотуп, 5 окуучунун баасын камтыган DataFrame түзүп, орточо жана эң жогорку баасын эсептеңиз.",
+ practice:["DataFrame'ди CSV файлга сактап (to_csv), кийин кайра окуп көрүңүз.","Белгилүү шартка ылайык (мис. баа 90дан жогору) катарларды чыпкалап алыңыз."],
+ check:{"runnable": true, "needsInput": false, "packages": ["pandas"], "type": "output-nonempty"}},
+{id:38, level:4, title:"Таза код жазуу эрежелери (PEP8, clean code)", isProject:false,
+ text:"Жакшы код — башкалар да оңой түшүнө турган код: мааниси бар аттар, кыска функциялар, комментарийлер, PEP8 стилине ылайык 4 боштук менен чегинүү.",
+ code:`# Жаман:\ndef f(x,y):return x+y\n\n# Жакшы:\ndef эки_санды_кошуу(биринчи_сан, экинчи_сан):\n    """Эки санды кошуп, натыйжаны кайтарат."""\n    return биринчи_сан + экинчи_сан`,
+ task:"Мурунку долбоорлоруңуздан бирин алып, PEP8 эрежелерине ылайык кайра жазыңыз (аттарды түшүнүктүү кылыңыз, комментарий кошуңуз).",
+ practice:["Функцияларыңызга docstring (\"\"\"...\"\"\") кошуп, эмне кылаарын жазыңыз.","Өтө узун бир функцияны 2-3 кичине функцияга бөлүп чыгыңыз."],
+ check:{"runnable": true, "needsInput": false, "type": "output-nonempty"}},
+{id:39, level:4, title:"Долбоорду түзүү жана деплой кылуу түшүнүгү", isProject:false,
+ text:"Деплой — программаны өзүңүздүн компьютериңизден чыгарып, интернетте баары колдоно ала турган кылуу. Мисалдар: Render, PythonAnywhere, Railway сыяктуу кызматтар Flask долбоорлорун акысыз жайгаштырат.",
+ code:`# Жөнөкөй кадамдар:\n# 1. Кодду GitHub'га жүктөө\n# 2. requirements.txt даярдоо\n# 3. Деплой платформасын тандоо (мис. Render)\n# 4. Репозиторийди байланыштырып, "Deploy" басуу`,
+ task:"36-сабактагы Flask долбооруңузду GitHub'га жүктөп, каалаган акысыз платформада деплой кылып көрүүгө аракет кылыңыз.",
+ practice:["README.md файл жазып, долбооруңуздун эмне кыларын түшүндүрүңүз.","Купуя маалыматтарды (.env) кодго түз жазбоо жолун изилдеңиз."],
+ check:{"runnable": false}},
+{id:40, level:4, title:"ЖЫЙЫНТЫК ДОЛБООР: Портфолио долбоору", isProject:true,
+ text:"Курстун бардык деңгээлинде үйрөнгөндөрдү (функциялар, ООП, файл/база менен иштөө, веб) бириктирип, өзүңүздүн толук колдонмоңузду түзүңүз — CLI тапшырмалар менеджери же Flask веб-колдонмо. Бул долбоорду GitHub'уңузга кошуп, портфолиого айландырыңыз.",
+ code:`# Идея: Flask + SQLite негизиндеги "Тапшырмалар трекери"\n# - Колдонуучу тапшырма кошот (класс/функция аркылуу)\n# - Тапшырмалар SQLite базасында сакталат\n# - Веб-баракчада тизме көрүнөт (Flask route)\n# - Аткарылган/аткарылбаган статусу белгиленет\n\n# Өзүңүздүн структураңызды түзүп, кадам-кадам курууну баштаңыз!`,
+ task:"Долбоордун планын жазыңыз (кайсы функциялар керек, кайсы класстар керек), андан кийин аны бөлүктөп ишке ашырыңыз. Даяр болгондо мугалимиңизге көрсөтүңүз!",
+ practice:["Долбооруңузга README жана скриншот кошуп, GitHub'га толук жүктөңүз.","Досуңузга же мугалимиңизге долбоорду көрсөтүп, пикир (feedback) сураңыз."],
+ check:{"runnable": true, "needsInput": false, "type": "no-crash"}},
+];
+
+const TOTAL_LESSONS = LESSONS.length;
+
+/* =========================================================
+   STATE
+   ========================================================= */
+let currentUser = null;   // {name, key}
+let currentRole = 'student';
+let activeModalLessonId = null;
+
+function keyify(name){
+  return name.trim().toLowerCase()
+    .replace(/[^a-zA-Zа-яА-ЯёЁӊҢөӨүҮ0-9]+/gu, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 60) || 'okuuchu';
+}
+
+function setRole(role){
+  currentRole = role;
+  document.getElementById('roleStudentBtn').classList.toggle('active', role==='student');
+  document.getElementById('roleTeacherBtn').classList.toggle('active', role==='teacher');
+  document.getElementById('studentFields').style.display = role==='student' ? 'block' : 'none';
+  document.getElementById('teacherFields').style.display = role==='teacher' ? 'block' : 'none';
+  if(role === 'student') loadTeacherOptions();
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('bottomNav').style.display = (id === 'app') ? 'flex' : 'none';
+}
+
+/* =========================================================
+   AUTH / SESSION
+   ========================================================= */
+async function tryAutoLogin(){
+  try{
+    const raw = localStorage.getItem('kodchujol_me');
+    if(raw){
+      const data = JSON.parse(raw);
+      if(data.role === 'teacher'){
+        currentRole = 'teacher';
+        currentUser = { name: data.name, key: keyify(data.name) };
+        await enterTeacher();
+      } else {
+        currentUser = { name: data.name, key: keyify(data.name), teacherKey: data.teacherKey, teacherName: data.teacherName };
+        await enterStudentApp();
+      }
+      return;
+    }
+  }catch(e){ /* no saved session, show login */ }
+  await loadTeacherOptions();
+}
+
+async function loadTeacherOptions(){
+  const select = document.getElementById('teacherSelect');
+  const hint = document.getElementById('noTeacherHint');
+  try{
+    const snap = await db.collection('teachers').orderBy('name').get();
+    if(snap.empty){
+      select.innerHTML = '<option value="">— мугалим жок —</option>';
+      hint.style.display = 'block';
+      return;
+    }
+    hint.style.display = 'none';
+    select.innerHTML = '<option value="">Тандаңыз...</option>' +
+      snap.docs.map(d => `<option value="${d.id}">${d.data().name}</option>`).join('');
+  }catch(e){
+    console.error('loadTeacherOptions error:', e);
+    select.innerHTML = '<option value="">Тизме жүктөлбөдү</option>';
+  }
+}
+
+async function loginStudent(){
+  const input = document.getElementById('nameInput');
+  const select = document.getElementById('teacherSelect');
+  const name = input.value.trim();
+  const teacherKey = select.value;
+  if(!name){ input.focus(); return; }
+  if(!teacherKey){ select.focus(); return; }
+  const teacherName = select.options[select.selectedIndex].textContent;
+
+  currentUser = { name: name, key: keyify(name), teacherKey: teacherKey, teacherName: teacherName };
+  try{
+    localStorage.setItem('kodchujol_me', JSON.stringify({role:'student', name:name, teacherKey:teacherKey, teacherName:teacherName}));
+  }catch(e){}
+
+  try{
+    await db.collection('progress').doc(currentUser.key).set({
+      name: name, teacherKey: teacherKey, teacherName: teacherName
+    }, { merge: true });
+  }catch(e){ console.error('student register error:', e); }
+
+  await enterStudentApp();
+}
+
+async function loginTeacher(){
+  const input = document.getElementById('teacherNameInput');
+  const name = input.value.trim();
+  if(!name){ input.focus(); return; }
+  currentRole = 'teacher';
+  currentUser = { name: name, key: keyify(name) };
+  try{
+    localStorage.setItem('kodchujol_me', JSON.stringify({role:'teacher', name:name}));
+  }catch(e){}
+  try{
+    await db.collection('teachers').doc(currentUser.key).set({ name: name }, { merge: true });
+  }catch(e){ console.error('teacher register error:', e); }
+  await enterTeacher();
+}
+
+function logout(){
+  try{ localStorage.removeItem('kodchujol_me'); }catch(e){}
+  currentUser = null;
+  showScreen('login');
+  loadTeacherOptions();
+}
+
+/* =========================================================
+   STUDENT PROGRESS
+   ========================================================= */
+async function getProgress(userKey){
+  try{
+    const doc = await db.collection('progress').doc(userKey).get();
+    if(doc.exists) return doc.data();
+  }catch(e){ console.error('getProgress error:', e); /* not found yet, or Firebase not configured */ }
+  return { name: currentUser ? currentUser.name : userKey, completed: [], lastActive: null, teacherKey: currentUser ? currentUser.teacherKey : null, teacherName: currentUser ? currentUser.teacherName : null };
+}
+
+async function saveProgress(progress){
+  await db.collection('progress').doc(currentUser.key).set(progress, { merge: true });
+}
+
+async function touchLastActive(){
+  try{
+    await db.collection('progress').doc(currentUser.key).set({ lastActive: new Date().toISOString() }, { merge: true });
+  }catch(e){ console.error('touchLastActive error:', e); }
+}
+
+async function enterStudentApp(){
+  document.getElementById('studentGreetName').textContent = currentUser.name;
+  showScreen('app');
+  await renderPath();
+  touchLastActive();
+}
+
+async function renderPath(){
+  const progress = await getProgress(currentUser.key);
+  const completedSet = new Set(progress.completed || []);
+  const completedCount = completedSet.size;
+  const pct = Math.round((completedCount / TOTAL_LESSONS) * 100);
+  const levelIdx = Math.min(4, Math.floor(completedCount / 10) + 1);
+
+  document.getElementById('levelLabel').textContent = levelIdx + '-ДЕҢГЭЭЛ';
+  document.getElementById('pctLabel').textContent = pct + '%';
+  document.getElementById('barFill').style.width = pct + '%';
+
+  let note;
+  if(completedCount === 0) note = "Азырынча эч сабак өтүлгөн жок. Төмөндөгү 1-сабактан баштаңыз!";
+  else if(completedCount === TOTAL_LESSONS) note = "🎉 Бардык 40 сабакты аяктадыңыз! Профессионал деңгээлге жеттиңиз!";
+  else note = `${completedCount} / ${TOTAL_LESSONS} сабак бүттү. Уланта бериңиз!`;
+  document.getElementById('progressNote').textContent = note;
+
+  const wrap = document.getElementById('pathWrap');
+  wrap.innerHTML = '';
+
+  LEVELS.forEach((lvl, lvlIndex) => {
+    const block = document.createElement('div');
+    block.className = 'level-block';
+
+    if(lvlIndex > 0){
+      const mtn = document.createElement('svg');
+      mtn.setAttribute('class','mountain');
+      mtn.setAttribute('viewBox','0 0 400 46');
+      mtn.setAttribute('preserveAspectRatio','none');
+      mtn.innerHTML = `<path d="M0 46 L40 14 L75 34 L120 4 L165 30 L205 10 L250 36 L300 12 L340 32 L400 18 L400 46 Z" fill="#1c1e42" opacity="0.7"/>
+        <path d="M0 46 L40 14 L75 34 L120 4 L165 30 L205 10 L250 36 L300 12 L340 32 L400 18" stroke="#34386e" stroke-width="1.5" fill="none"/>`;
+      block.appendChild(mtn);
+    }
+
+    const header = document.createElement('div');
+    header.className = 'level-header';
+    header.innerHTML = `<div class="level-name">${lvl.name}</div><div class="level-desc">${lvl.desc}</div>`;
+    block.appendChild(header);
+
+    const nodesWrap = document.createElement('div');
+    nodesWrap.className = 'nodes';
+
+    const lessonsInLevel = LESSONS.filter(l => l.level === lvl.num);
+    lessonsInLevel.forEach((lesson, i) => {
+      const isDone = completedSet.has(lesson.id);
+      const isUnlocked = lesson.id === 1 || completedSet.has(lesson.id - 1);
+      const isCurrent = isUnlocked && !isDone;
+
+      if(i > 0){
+        const conn = document.createElement('div');
+        conn.className = 'connector' + (completedSet.has(lessonsInLevel[i-1].id) ? ' done' : '');
+        nodesWrap.appendChild(conn);
+      }
+
+      const row = document.createElement('div');
+      row.className = 'node-row';
+
+      const btn = document.createElement('button');
+      let cls = 'node-btn';
+      if(!isUnlocked) cls += ' locked';
+      else if(isDone) cls += ' done';
+      else if(lesson.isProject) cls += ' project';
+      else if(isCurrent) cls += ' current';
+      btn.className = cls;
+      btn.disabled = !isUnlocked;
+
+      const badgeContent = isDone ? '✓' : (lesson.isProject ? '★' : (isUnlocked ? lesson.id : '🔒'));
+      btn.innerHTML = `
+        <div class="node-badge">${badgeContent}</div>
+        <div>
+          <div class="node-title">${lesson.title}</div>
+          <div class="node-sub">${lesson.isProject ? 'ДОЛБООР' : 'Сабак ' + lesson.id} · ${lvl.num}-деңгээл</div>
+        </div>`;
+      if(isUnlocked){
+        btn.onclick = () => openModal(lesson.id);
+      }
+      row.appendChild(btn);
+      nodesWrap.appendChild(row);
+    });
+
+    block.appendChild(nodesWrap);
+    wrap.appendChild(block);
+  });
+
+  const nextSteps = document.createElement('div');
+  nextSteps.className = 'next-steps-card';
+  nextSteps.innerHTML = `
+    <div class="next-steps-title">🚀 Жолдун аягында эмне кылуу керек?</div>
+    <div class="next-steps-text">Бул 40 сабак сизге бекем негиз берет — бирок чыныгы программист болуу үчүн дагы көп практика керек. Мындан ары:
+• Өз алдынча кичи долбоорлорду ойлоп таап, жазып көрүңүз (мис. өз оюнуңуз, өз куралыңыз)
+• GitHub'да ачык долбоорлорду карап, кантип жазылганын изилдеңиз
+• Башка кодчулар менен биргелешип иштеп көрүңүз
+• Ката кетирүүдөн коркпоңуз — ар бир ката жаңы сабак
+Бул жолду аяктаган соң деле үйрөнүү токтобойт — ал жаңы гана башталат.</div>`;
+  wrap.appendChild(nextSteps);
+}
+
+/* =========================================================
+   MODAL
+   ========================================================= */
+async function openModal(lessonId){
+  const lesson = LESSONS.find(l => l.id === lessonId);
+  if(!lesson) return;
+  activeModalLessonId = lessonId;
+
+  const progress = await getProgress(currentUser.key);
+  const isDone = (progress.completed || []).includes(lessonId);
+
+  document.getElementById('modalTag').textContent = `${lesson.level}-ДЕҢГЭЭЛ · ${lesson.isProject ? 'ДОЛБООР' : 'САБАК ' + lesson.id}`;
+  document.getElementById('modalTitle').textContent = lesson.title;
+  document.getElementById('modalText').textContent = lesson.text;
+  document.getElementById('modalCode').textContent = lesson.code;
+  document.getElementById('modalTask').textContent = lesson.task;
+
+  const practiceBox = document.getElementById('practiceBox');
+  const practiceList = document.getElementById('practiceList');
+  if(lesson.practice && lesson.practice.length){
+    practiceBox.style.display = 'block';
+    practiceList.innerHTML = lesson.practice.map((p, i) =>
+      `<div class="practice-item"><span class="practice-num">${i+1}.</span><span>${p}</span></div>`
+    ).join('');
+  } else {
+    practiceBox.style.display = 'none';
+  }
+
+  const doneBtn = document.getElementById('modalDoneBtn');
+  if(isDone){
+    doneBtn.textContent = '✓ Аяктады — кайра белгилөө';
+    doneBtn.classList.add('completed');
+  } else {
+    doneBtn.textContent = lesson.isProject ? '✅ Долбоорду аяктадым' : '✅ Сабакты аяктадым';
+    doneBtn.classList.remove('completed');
+  }
+
+  // reset code runner UI
+  const editorBox = document.getElementById('codeEditorBox');
+  const notRunnable = document.getElementById('notRunnableNote');
+  const inputQueueBox = document.getElementById('inputQueueBox');
+  const inputQueue = document.getElementById('inputQueue');
+  document.getElementById('codeEditor').value = '';
+  document.getElementById('consoleBox').style.display = 'none';
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('runBtn').disabled = false;
+  document.getElementById('runBtn').textContent = '▶ Иштетүү жана текшерүү';
+
+  const check = lesson.check || {};
+  if(check.runnable === false){
+    editorBox.style.display = 'none';
+    notRunnable.style.display = 'block';
+  } else {
+    editorBox.style.display = 'block';
+    notRunnable.style.display = 'none';
+    if(check.needsInput){
+      inputQueueBox.style.display = 'block';
+      inputQueue.value = (check.defaultInputs || []).join('\n');
+    } else {
+      inputQueueBox.style.display = 'none';
+      inputQueue.value = '';
+    }
+  }
+
+  document.getElementById('modalBg').classList.add('active');
+}
+
+function closeModal(){
+  document.getElementById('modalBg').classList.remove('active');
+  activeModalLessonId = null;
+}
+
+/* =========================================================
+   CODE RUNNER (Pyodide)
+   ========================================================= */
+let pyodideInstance = null;
+let pyodideLoadingPromise = null;
+
+async function ensurePyodide(){
+  if(pyodideInstance) return pyodideInstance;
+  if(pyodideLoadingPromise) return pyodideLoadingPromise;
+  const runBtn = document.getElementById('runBtn');
+  runBtn.disabled = true;
+  runBtn.textContent = '⏳ Python жүктөлүүдө... (биринчи жолу 10-20 сек)';
+  pyodideLoadingPromise = loadPyodide().then(pyodide => {
+    pyodideInstance = pyodide;
+    return pyodide;
+  });
+  return pyodideLoadingPromise;
+}
+
+async function runStudentCode(){
+  const lesson = LESSONS.find(l => l.id === activeModalLessonId);
+  if(!lesson) return;
+  const code = document.getElementById('codeEditor').value;
+  const inputsRaw = document.getElementById('inputQueue').value;
+  const inputs = inputsRaw.split('\n');
+  const consoleBox = document.getElementById('consoleBox');
+  const consoleOutput = document.getElementById('consoleOutput');
+  const resultBox = document.getElementById('resultBox');
+  const runBtn = document.getElementById('runBtn');
+
+  if(!code.trim()){
+    alert('Алгач кодуңузду жазыңыз.');
+    return;
+  }
+
+  consoleBox.style.display = 'block';
+  consoleOutput.textContent = 'Иштетилүүдө...';
+  resultBox.style.display = 'none';
+
+  let pyodide;
+  try{
+    pyodide = await ensurePyodide();
+  }catch(e){
+    consoleOutput.textContent = '⚠️ Python жүктөлбөдү. Интернет байланышын текшериңиз.';
+    runBtn.disabled = false;
+    runBtn.textContent = '▶ Иштетүү жана текшерүү';
+    return;
+  }
+
+  runBtn.disabled = true;
+  runBtn.textContent = '⏳ Аткарылууда...';
+
+  const check = lesson.check || {};
+  if(check.packages && check.packages.length){
+    try{ await pyodide.loadPackage(check.packages); }catch(e){ /* ignore */ }
+  }
+
+  let output = '';
+  pyodide.setStdout({ batched: (s) => { output += s + '\n'; } });
+  pyodide.setStderr({ batched: (s) => { output += s + '\n'; } });
+
+  pyodide.globals.set('_kj_inputs_js', inputs);
+
+  const wrapper =
+`import builtins as _kj_builtins
+from js import _kj_inputs_js
+_kj_inputs_list = list(_kj_inputs_js)
+_kj_input_iter = iter(_kj_inputs_list)
+def _kj_fake_input(prompt=""):
+    print(prompt, end="")
+    try:
+        val = next(_kj_input_iter)
+    except StopIteration:
+        val = ""
+    print(val)
+    return val
+_kj_builtins.input = _kj_fake_input
+`;
+
+  let errorMsg = null;
+  try{
+    pyodide.runPython(wrapper);
+    await pyodide.runPythonAsync(code);
+  }catch(e){
+    errorMsg = e.message || String(e);
+  }
+
+  consoleOutput.textContent = output.trim() ? output : '(чыгуу жок — print() колдондуңузбу?)';
+  if(errorMsg){
+    consoleOutput.textContent += '\n\n❌ КАТА:\n' + errorMsg;
+  }
+
+  const result = gradeLesson(lesson, pyodide, output, errorMsg);
+  showResult(result);
+
+  runBtn.disabled = false;
+  runBtn.textContent = '▶ Кайра иштетүү';
+}
+
+function gradeLesson(lesson, pyodide, stdout, errorMsg){
+  const check = lesson.check || {};
+  const lower = stdout.toLowerCase();
+
+  if(!check.type || check.type === 'manual'){
+    return errorMsg
+      ? { passed:false, graded:false, title:'Код катасыз аткарылган жок', detail: errorMsg }
+      : { passed:true, graded:false, title:'Код катасыз иштеди', detail:'Бул тапшырма ачык мүнөздө — натыйжаны өзүңүз же мугалимиңиз менен текшериңиз.' };
+  }
+
+  if(errorMsg){
+    return { passed:false, graded:true, title:'Код катасыз аткарылган жок', score:0, total:1, detail: errorMsg };
+  }
+
+  if(check.type === 'output-contains'){
+    const missing = check.must.filter(m => !lower.includes(m.toLowerCase()));
+    const passed = missing.length === 0;
+    return { passed, graded:true, score: check.must.length - missing.length, total: check.must.length,
+      title: passed ? 'Туура! Чыгуу күтүлгөндөй' : 'Толук эмес',
+      detail: passed ? '' : ('Күтүлгөн маалымат чыкпады: ' + missing.join(', ') + '. Кодуңузду кайра карап чыгыңыз.') };
+  }
+
+  if(check.type === 'output-nonempty'){
+    const passed = stdout.trim().length > 0;
+    return { passed, graded:true, score: passed?1:0, total:1,
+      title: passed ? 'Код иштеди' : 'Чыгуу жок',
+      detail: passed ? 'Код ийгиликтүү аткарылды жана натыйжа берди.' : 'Эч нерсе басылып чыккан жок — print() колдонгонуңузду текшериңиз.' };
+  }
+
+  if(check.type === 'no-crash'){
+    return { passed:true, graded:true, score:1, total:1, title:'Код катасыз иштеди', detail:'' };
+  }
+
+  if(check.type === 'min-lines'){
+    const lines = stdout.split('\n').filter(l => l.trim().length > 0);
+    const passed = lines.length >= check.min;
+    return { passed, graded:true, score:lines.length, total:check.min,
+      title: passed ? 'Жетиштүү маалымат чыкты' : 'Дагы көбүрөөк чыгаруу керек',
+      detail: passed ? '' : `Күтүлгөн: жок дегенде ${check.min} сап, чыккан: ${lines.length}.` };
+  }
+
+  if(check.type === 'function-test'){
+    let passedCount = 0;
+    const details = [];
+    let fnMissing = false;
+    for(const [args, expected] of check.cases){
+      try{
+        const fn = pyodide.globals.get(check.func);
+        if(fn === undefined){ fnMissing = true; break; }
+        const res = fn(...args);
+        const jsRes = (res && typeof res.toJs === 'function') ? res.toJs() : res;
+        const normalized = Array.isArray(jsRes) ? jsRes : jsRes;
+        const ok = JSON.stringify(normalized) === JSON.stringify(expected);
+        if(ok) passedCount++;
+        else details.push(`${check.func}(${args.map(a=>JSON.stringify(a)).join(', ')}) → күттүк: ${JSON.stringify(expected)}, чыккан: ${JSON.stringify(normalized)}`);
+      }catch(e){
+        details.push(`${check.func}(${args.map(a=>JSON.stringify(a)).join(', ')}) — ката: ${e.message}`);
+      }
+    }
+    if(fnMissing){
+      return { passed:false, graded:true, score:0, total:check.cases.length, title:'Функция табылган жок',
+        detail: `"${check.func}" аттуу функция кодуңуздан табылган жок. Функциянын атын так ушундай жазганыңызды текшериңиз.` };
+    }
+    const passed = passedCount === check.cases.length;
+    return { passed, graded:true, score:passedCount, total:check.cases.length,
+      title: passed ? `Бардык тесттер өттү! (${passedCount}/${check.cases.length})` : `Айрым тесттер өтпөдү (${passedCount}/${check.cases.length})`,
+      detail: details.join('\n') };
+  }
+
+  return { passed: !errorMsg, graded:false, title: errorMsg ? 'Ката' : 'Аткарылды', detail:'' };
+}
+
+function showResult(result){
+  const box = document.getElementById('resultBox');
+  box.style.display = 'block';
+  box.className = 'result-box ' + (result.passed ? 'pass' : 'fail');
+  let html = `<div class="result-title">${result.passed ? '✅' : '❌'} ${result.title}</div>`;
+  if(result.graded && typeof result.score === 'number'){
+    html += `<div class="result-score">Балл: ${result.score} / ${result.total}</div>`;
+  }
+  if(result.detail){
+    html += `<div class="result-detail">${result.detail}</div>`;
+  }
+  box.innerHTML = html;
+}
+
+async function markDone(){
+  if(!activeModalLessonId) return;
+  const progress = await getProgress(currentUser.key);
+  const completed = new Set(progress.completed || []);
+  completed.add(activeModalLessonId);
+  progress.completed = Array.from(completed);
+  progress.name = currentUser.name;
+  progress.lastActive = new Date().toISOString();
+  await saveProgress(progress);
+  closeModal();
+  await renderPath();
+}
+
+/* =========================================================
+   TEACHER DASHBOARD
+   ========================================================= */
+async function enterTeacher(){
+  document.getElementById('teacherGreetName').textContent = currentUser.name;
+  showScreen('teacher');
+  await loadTeacherData();
+}
+
+function daysSince(isoString){
+  if(!isoString) return Infinity;
+  const then = new Date(isoString).getTime();
+  const now = Date.now();
+  return (now - then) / (1000*60*60*24);
+}
+
+function statusDot(days){
+  if(days <= 3) return 'green';
+  if(days <= 7) return 'yellow';
+  return 'red';
+}
+
+async function loadTeacherData(){
+  const listWrap = document.getElementById('studentList');
+  const statRow = document.getElementById('statRow');
+  listWrap.innerHTML = '<div class="empty-state"><div class="big">⏳</div>Жүктөлүүдө...</div>';
+
+  let snapshot;
+  try{
+    snapshot = await db.collection('progress').where('teacherKey', '==', currentUser.key).get();
+  }catch(e){
+    console.error('loadTeacherData error:', e);
+    statRow.innerHTML = '';
+    listWrap.innerHTML = `<div class="empty-state"><div class="big">⚠️</div>Firebase'ге туташуу мүмкүн болбоду.<br>firebaseConfig туура коюлганын жана Firestore Rules'ду текшериңиз.</div>`;
+    return;
+  }
+
+  if(!snapshot || snapshot.empty){
+    statRow.innerHTML = '';
+    listWrap.innerHTML = `<div class="empty-state"><div class="big">🗺️</div>Азырынча сиздин окуучуларыңыз катталган жок.<br>Окуучуларыңызга сайттын шилтемесин жиберип, "Окуучу" катары кирип, тизмеден атыңызды тандоосун сураңыз.</div>`;
+    return;
+  }
+
+  const students = [];
+  snapshot.forEach(doc => students.push(doc.data()));
+
+  students.sort((a,b) => (b.completed||[]).length - (a.completed||[]).length);
+
+  const activeCount = students.filter(s => daysSince(s.lastActive) <= 3).length;
+  const inactiveCount = students.filter(s => daysSince(s.lastActive) > 7).length;
+  const avgProgress = students.length ? Math.round(students.reduce((sum,s)=>sum+(s.completed||[]).length,0) / students.length / TOTAL_LESSONS * 100) : 0;
+
+  statRow.innerHTML = `
+    <div class="stat-chip"><div class="stat-num">${students.length}</div><div class="stat-label">Окуучу</div></div>
+    <div class="stat-chip"><div class="stat-num" style="color:var(--mint)">${activeCount}</div><div class="stat-label">Активдүү</div></div>
+    <div class="stat-chip"><div class="stat-num" style="color:var(--coral)">${inactiveCount}</div><div class="stat-label">Катышкан жок</div></div>
+    <div class="stat-chip"><div class="stat-num">${avgProgress}%</div><div class="stat-label">Орточо прогресс</div></div>
+  `;
+
+  listWrap.innerHTML = '';
+  students.forEach(s => {
+    const completedCount = (s.completed || []).length;
+    const pct = Math.round(completedCount / TOTAL_LESSONS * 100);
+    const levelIdx = Math.min(4, Math.floor(completedCount / 10) + 1);
+    const days = daysSince(s.lastActive);
+    const dot = statusDot(days);
+    let lastActiveText;
+    if(!s.lastActive) lastActiveText = 'Эч качан';
+    else if(days < 1) lastActiveText = 'Бүгүн';
+    else if(days < 2) lastActiveText = 'Кечээ';
+    else lastActiveText = Math.floor(days) + ' күн мурун';
+
+    const card = document.createElement('div');
+    card.className = 'student-card';
+    card.innerHTML = `
+      <div class="s-top">
+        <div class="s-name"><span class="dot ${dot}"></span>${s.name}</div>
+        <div class="s-level">${levelIdx}-деңгээл</div>
+      </div>
+      <div class="s-bar-track"><div class="s-bar-fill" style="width:${pct}%"></div></div>
+      <div class="s-meta">
+        <span>${completedCount} / ${TOTAL_LESSONS} сабак (${pct}%)</span>
+        <span>Акыркы активдүүлүк: ${lastActiveText}</span>
+      </div>
+    `;
+    listWrap.appendChild(card);
+  });
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+tryAutoLogin();
+</script>
+</body>
+</html>
