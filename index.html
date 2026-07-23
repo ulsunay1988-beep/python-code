@@ -294,12 +294,10 @@
     <div id="studentFields">
       <div class="field-label">Атыңыз</div>
       <input type="text" id="nameInput" placeholder="Мисалы: Айжан Осмонова" maxlength="40">
-      <div class="field-label">Мугалимиңиз</div>
-      <select id="teacherSelect">
-        <option value="">Жүктөлүүдө...</option>
-      </select>
+      <div class="field-label">Мугалимиңиздин коду</div>
+      <input type="text" id="teacherCodeInput" placeholder="Мисалы: KJ7X2P" maxlength="8" style="text-transform:uppercase;">
       <button class="primary-btn" onclick="loginStudent()">Жолго чыгуу →</button>
-      <div class="login-hint" id="noTeacherHint" style="display:none; color:var(--coral);">Азырынча бир дагы мугалим катталган жок. Мугалимиңизге "Мугалим" катары кирип, катталууну сураңыз.</div>
+      <div class="login-hint" id="teacherCodeError" style="display:none; color:var(--coral);">Мындай код табылган жок. Мугалимиңизден кодду кайра тактаңыз.</div>
     </div>
 
     <div id="teacherFields" style="display:none;">
@@ -340,6 +338,13 @@
       <div class="t-title">Мугалим панели — <span id="teacherGreetName" style="color:var(--gold)">Мугалим</span></div>
       <div class="t-sub">Өзүңүздүн окуучуларыңыздын прогресси жана активдүүлүгү жандуу көрүнөт. 🟢 акыркы 3 күндө активдүү · 🟡 3-7 күн · 🔴 7 күндөн ашык катышкан жок.</div>
     </div>
+  </div>
+  <div class="progress-card" style="margin-bottom:18px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;">
+    <div>
+      <div class="progress-level" style="margin-bottom:4px;">Окуучуларыңыз үчүн код</div>
+      <div class="progress-pct" id="teacherCodeDisplay" style="letter-spacing:3px;">------</div>
+    </div>
+    <button class="refresh-btn" onclick="copyTeacherCode()">📋 Көчүрүү</button>
   </div>
   <div style="display:flex; gap:10px; margin-bottom:18px;">
     <button class="refresh-btn" onclick="loadTeacherData()">↻ Жаңыртуу</button>
@@ -696,7 +701,6 @@ function setRole(role){
   document.getElementById('roleTeacherBtn').classList.toggle('active', role==='teacher');
   document.getElementById('studentFields').style.display = role==='student' ? 'block' : 'none';
   document.getElementById('teacherFields').style.display = role==='teacher' ? 'block' : 'none';
-  if(role === 'student') loadTeacherOptions();
 }
 
 function showScreen(id){
@@ -715,7 +719,7 @@ async function tryAutoLogin(){
       const data = JSON.parse(raw);
       if(data.role === 'teacher'){
         currentRole = 'teacher';
-        currentUser = { name: data.name, key: keyify(data.name) };
+        currentUser = { name: data.name, key: keyify(data.name), code: data.code };
         await enterTeacher();
       } else {
         currentUser = { name: data.name, key: keyify(data.name), teacherKey: data.teacherKey, teacherName: data.teacherName };
@@ -724,36 +728,42 @@ async function tryAutoLogin(){
       return;
     }
   }catch(e){ /* no saved session, show login */ }
-  await loadTeacherOptions();
 }
 
-async function loadTeacherOptions(){
-  const select = document.getElementById('teacherSelect');
-  const hint = document.getElementById('noTeacherHint');
-  try{
-    const snap = await db.collection('teachers').orderBy('name').get();
-    if(snap.empty){
-      select.innerHTML = '<option value="">— мугалим жок —</option>';
-      hint.style.display = 'block';
-      return;
-    }
-    hint.style.display = 'none';
-    select.innerHTML = '<option value="">Тандаңыз...</option>' +
-      snap.docs.map(d => `<option value="${d.id}">${d.data().name}</option>`).join('');
-  }catch(e){
-    console.error('loadTeacherOptions error:', e);
-    select.innerHTML = '<option value="">Тизме жүктөлбөдү</option>';
-  }
+function generateTeacherCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I to avoid confusion
+  let code = '';
+  for(let i=0; i<6; i++) code += chars[Math.floor(Math.random()*chars.length)];
+  return code;
 }
 
 async function loginStudent(){
   const input = document.getElementById('nameInput');
-  const select = document.getElementById('teacherSelect');
+  const codeInput = document.getElementById('teacherCodeInput');
+  const errorHint = document.getElementById('teacherCodeError');
   const name = input.value.trim();
-  const teacherKey = select.value;
+  const code = codeInput.value.trim().toUpperCase();
+  errorHint.style.display = 'none';
   if(!name){ input.focus(); return; }
-  if(!teacherKey){ select.focus(); return; }
-  const teacherName = select.options[select.selectedIndex].textContent;
+  if(!code){ codeInput.focus(); return; }
+
+  let teacherKey, teacherName;
+  try{
+    const snap = await db.collection('teachers').where('code', '==', code).limit(1).get();
+    if(snap.empty){
+      errorHint.style.display = 'block';
+      codeInput.focus();
+      return;
+    }
+    const doc = snap.docs[0];
+    teacherKey = doc.id;
+    teacherName = doc.data().name;
+  }catch(e){
+    console.error('teacher code lookup error:', e);
+    errorHint.textContent = 'Туташууда ката кетти. Интернетти текшерип, кайра аракет кылыңыз.';
+    errorHint.style.display = 'block';
+    return;
+  }
 
   currentUser = { name: name, key: keyify(name), teacherKey: teacherKey, teacherName: teacherName };
   try{
@@ -774,13 +784,25 @@ async function loginTeacher(){
   const name = input.value.trim();
   if(!name){ input.focus(); return; }
   currentRole = 'teacher';
-  currentUser = { name: name, key: keyify(name) };
+  const teacherKey = keyify(name);
+  let code;
   try{
-    localStorage.setItem('kodchujol_me', JSON.stringify({role:'teacher', name:name}));
+    const existing = await db.collection('teachers').doc(teacherKey).get();
+    if(existing.exists && existing.data().code){
+      code = existing.data().code;
+    } else {
+      code = generateTeacherCode();
+      await db.collection('teachers').doc(teacherKey).set({ name: name, code: code }, { merge: true });
+    }
+  }catch(e){
+    console.error('teacher register error:', e);
+    alert('Firebase менен туташууда ката кетти. Rules жана конфигди текшериңиз.');
+    return;
+  }
+  currentUser = { name: name, key: teacherKey, code: code };
+  try{
+    localStorage.setItem('kodchujol_me', JSON.stringify({role:'teacher', name:name, code:code}));
   }catch(e){}
-  try{
-    await db.collection('teachers').doc(currentUser.key).set({ name: name }, { merge: true });
-  }catch(e){ console.error('teacher register error:', e); }
   await enterTeacher();
 }
 
@@ -788,7 +810,18 @@ function logout(){
   try{ localStorage.removeItem('kodchujol_me'); }catch(e){}
   currentUser = null;
   showScreen('login');
-  loadTeacherOptions();
+}
+
+function copyTeacherCode(){
+  if(!currentUser || !currentUser.code) return;
+  navigator.clipboard.writeText(currentUser.code).then(() => {
+    const btn = event.target;
+    const old = btn.textContent;
+    btn.textContent = '✓ Көчүрүлдү';
+    setTimeout(() => { btn.textContent = old; }, 1500);
+  }).catch(() => {
+    alert('Код: ' + currentUser.code);
+  });
 }
 
 /* =========================================================
@@ -1053,7 +1086,6 @@ async function runStudentCode(){
 
   const wrapper =
 `import builtins as _kj_builtins
-from js import _kj_inputs_js
 _kj_inputs_list = list(_kj_inputs_js)
 _kj_input_iter = iter(_kj_inputs_list)
 def _kj_fake_input(prompt=""):
@@ -1191,6 +1223,7 @@ async function markDone(){
    ========================================================= */
 async function enterTeacher(){
   document.getElementById('teacherGreetName').textContent = currentUser.name;
+  document.getElementById('teacherCodeDisplay').textContent = currentUser.code || '------';
   showScreen('teacher');
   await loadTeacherData();
 }
